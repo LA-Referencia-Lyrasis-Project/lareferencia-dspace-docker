@@ -134,6 +134,11 @@ derrubar_containers() {
     docker compose -f docker-compose.prod.yml down --remove-orphans
 }
 
+parar_containers() {
+    echo "======= Parando Containers ======="
+    docker compose -f docker-compose.prod.yml stop
+}
+
 exibir_ajuda() {
     echo "Uso: $0 {install|update|rebuild|restart}"
     echo "  install : Faz o clone inicial e instala todo o ambiente"
@@ -171,6 +176,9 @@ case "$1" in
     restart)
         derrubar_containers
         subir_containers
+        ;;
+    stop)
+        parar_containers
         ;;
     *)
         exibir_ajuda
