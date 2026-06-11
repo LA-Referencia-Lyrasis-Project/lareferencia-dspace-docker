@@ -102,3 +102,33 @@ docker compose -f docker-compose.prod.yml restart <nome-do-serviço>
 docker compose -f docker-compose.prod.yml restart dspace
 
 ```
+
+## Logs e comandos úteis
+
+Para visualizar os logs de um serviço específico:
+
+```bash
+docker logs -f <nome-do-serviço>
+
+# Exemplo prático para o Frontend (dspace-angular)
+docker logs -f dspace-angular  
+
+```
+
+Para visualizar os logs do DSpace (backend):
+
+```bash
+docker exec -it dspace tail -f /dspace/log/dspace.log
+```
+
+Para visualizar o arquivo de configuração do dspace-angular:
+
+```bash
+docker exec -it dspace-angular cat /app/src/assets/config.json
+```
+
+Para criar um novo usuário administrador no DSpace (backend):
+
+```bash
+docker exec -it dspace /dspace/bin/dspace create-administrator        
+```

@@ -66,15 +66,40 @@ atualizar_repositorios() {
 }
 
 corrigir_dockerfiles() {
-    echo "======= Corrigindo permissões dos Dockerfiles ======="
+    echo "======= Corrigindo permissões e modos de produção nos Dockerfiles ======="
+    
+    # Correção do Backend (DSpace)
     if [ -f DSpace/Dockerfile ] && ! grep -q "USER root" DSpace/Dockerfile; then
         sed -i '/RUN mkdir \/install/i USER root' DSpace/Dockerfile
-        echo "Dockerfile de produção corrigido."
+        echo "Dockerfile de produção do backend corrigido."
     fi
 
     if [ -f DSpace/Dockerfile.test ] && ! grep -q "USER root" DSpace/Dockerfile.test; then
         sed -i '/RUN mkdir \/install/i USER root' DSpace/Dockerfile.test
-        echo "Dockerfile.test de desenvolvimento corrigido."
+        echo "Dockerfile.test de desenvolvimento do backend corrigido."
+    fi
+
+    # Correção Robusta do Frontend (dspace-angular) para Produção SSR Nativa
+    if [ -f dspace-angular/Dockerfile ]; then
+        # 1. Limpa resquícios antigos para garantir idempotência (evitar duplicidade)
+        sed -i '/ENV NODE_ENV=/d' dspace-angular/Dockerfile
+        sed -i '/CMD npm run/d' dspace-angular/Dockerfile
+        sed -i '/RUN npm run build:prod/d' dspace-angular/Dockerfile
+        sed -i '/# --- Configuração de Produção SSR Nativa/d' dspace-angular/Dockerfile
+
+        # 2. Injeta o Build na montagem da imagem e o start puro no Runtime
+        cat << 'EOF' >> dspace-angular/Dockerfile
+
+# --- Configuração de Produção SSR Nativa (dspace-docker-deploy) ---
+ENV NODE_ENV=production
+
+# Executa a compilação pesada DURANTE o docker build (Imagem fica pronta e leve)
+RUN npm run build:prod
+
+# No runtime, apenas inicializa o servidor Express instantaneamente
+CMD ["npm", "run", "serve:ssr"]
+EOF
+        echo "Dockerfile do frontend otimizado: Build no artefato e Start no runtime."
     fi
 }
 
