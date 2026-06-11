@@ -1,0 +1,125 @@
+networks:
+  dspacenet:
+    ipam:
+      config:
+        - subnet: 172.99.0.0/16
+    external: false
+
+services:
+  # Banco de Dados (PostgreSQL)
+  dspacedb:
+    container_name: dspacedb
+    image: "docker.io/postgres:${POSTGRES_VERSION:-15}"
+    environment:
+      PGDATA: /pgdata
+      POSTGRES_DB: dspace
+      POSTGRES_USER: ${POSTGRES_USER:-dspace}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dspace}
+    networks:
+      - dspacenet
+    volumes:
+      - pgdata:/pgdata
+    restart: always
+
+  # Solr Search Engine
+  dspacesolr:
+    container_name: dspacesolr
+    image: "docker.io/dspace/dspace-solr:latest"
+    build:
+      context: ./DSpace/dspace/src/main/docker/dspace-solr/
+      additional_contexts:
+        solrconfigs: ./DSpace/dspace/solr/
+    networks:
+      - dspacenet
+    working_dir: /var/solr/data
+    volumes:
+      - solr_data:/var/solr/data
+    user: root
+    entrypoint:
+      - /bin/bash
+      - '-c'
+      - |
+        init-var-solr
+        precreate-core authority /opt/solr/server/solr/configsets/authority
+        cp -r /opt/solr/server/solr/configsets/authority/* authority
+        precreate-core oai /opt/solr/server/solr/configsets/oai
+        cp -r /opt/solr/server/solr/configsets/oai/* oai
+        precreate-core search /opt/solr/server/solr/configsets/search
+        cp -r /opt/solr/server/solr/configsets/search/* search
+        precreate-core statistics /opt/solr/server/solr/configsets/statistics
+        cp -r /opt/solr/server/solr/configsets/statistics/* statistics
+        precreate-core qaevent /opt/solr/server/solr/configsets/qaevent
+        cp -r /opt/solr/server/solr/configsets/qaevent/* qaevent
+        precreate-core suggestion /opt/solr/server/solr/configsets/suggestion
+        cp -r /opt/solr/server/solr/configsets/suggestion/* suggestion
+        precreate-core audit /opt/solr/server/solr/configsets/audit
+        cp -r /opt/solr/server/solr/configsets/audit/* audit
+        chown -R solr:solr /var/solr
+        runuser -u solr -- solr-foreground
+    restart: always
+
+  # Backend (DSpace REST API - Spring Boot Embarcado)
+  dspace:
+    container_name: dspace
+    image: "dspace:latest-prod-springboot"
+    build:
+      context: ./DSpace
+      dockerfile: Dockerfile
+    environment:
+      dspace__P__server__P__ssr__P__url: http://dspace:8080/server
+      dspace__P__server__P__url: ${dspace__P__server__P__url}
+      dspace__P__ui__P__url: ${dspace__P__ui__P__url}
+      dspace__P__name: ${dspace__P__name}
+      db__P__url: ${db__P__url}
+      solr__P__server: http://dspacesolr:8983/solr
+      
+      proxies__P__trusted__P__ipranges: 172.99.0
+    depends_on:
+      - dspacedb
+    networks:
+      - dspacenet
+    ports:
+      - "8080:8080"
+    volumes:
+      - assetstore:/dspace/assetstore
+      - ./DSpace/dspace/config:/dspace/config
+    entrypoint:
+      - /bin/bash
+      - '-c'
+      - |
+        while (!</dev/tcp/dspacedb/5432) > /dev/null 2>&1; do sleep 1; done;
+        /dspace/bin/dspace database migrate
+        java -jar /dspace/webapps/server-boot.jar
+    restart: always
+
+  # Frontend (DSpace Angular Production SSR)
+  dspace-angular:
+    container_name: dspace-angular
+    build:
+      context: ./dspace-angular
+      dockerfile: Dockerfile
+      args:
+        TARGET_ENV: production
+    environment:
+      NODE_ENV: production
+      DSPACE_UI_SSL: ${DSPACE_UI_SSL}
+      DSPACE_UI_HOST: ${DSPACE_UI_HOST}
+      DSPACE_UI_PORT: ${DSPACE_UI_PORT}
+      DSPACE_UI_NAMESPACE: ${DSPACE_UI_NAMESPACE}
+      DSPACE_REST_SSL: ${DSPACE_REST_SSL}
+      DSPACE_REST_HOST: ${DSPACE_REST_HOST}
+      DSPACE_REST_PORT: ${DSPACE_REST_PORT}
+      DSPACE_REST_NAMESPACE: ${DSPACE_REST_NAMESPACE}
+      DSPACE_REST_SSRBASEURL: http://dspace:8080/server
+    ports:
+      - "4000:4000"
+    networks:
+      - dspacenet
+    depends_on:
+      - dspace
+    restart: always
+
+volumes:
+  assetstore:
+  pgdata:
+  solr_data:
