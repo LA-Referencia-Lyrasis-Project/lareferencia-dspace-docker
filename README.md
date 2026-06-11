@@ -27,7 +27,7 @@ Certifique-se de que o script possui permissão de execução:
 chmod +x deploy.sh
 ```
 
-> Execute o comando passando uma das opções abaixo (utilize `sudo` se o seu usuário não estiver no grupo `docker`):
+Execute o comando passando uma das opções abaixo (utilize `sudo` se o seu usuário não estiver no grupo `docker`):
 
 |**Comando**|**Descrição**|
 |---|---|
