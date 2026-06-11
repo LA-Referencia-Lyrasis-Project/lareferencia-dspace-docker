@@ -14,7 +14,56 @@ Antes de rodar o script de deploy, é obrigatório configurar as variáveis de a
    ```
    
 2. Edite o `.env` com as suas configurações específicas (repositórios, tags/branches, credenciais, etc.).
-3. ⚠️ Atenção Crítica: Altere a variável POSTGRES_PASSWORD para uma senha forte de sua preferência antes de iniciar o ambiente pela primeira vez.
+3. Configure o arquivo `local.cfg` com as propriedades específicas do DSpace (e-mail, autenticação externa, etc.).
+4. ⚠️ Atenção Crítica: Altere a variável POSTGRES_PASSWORD para uma senha forte de sua preferência antes de iniciar o ambiente pela primeira vez.
+
+## Configuração do DSpace (`local.cfg`)
+
+Além do arquivo `.env`, você pode configurar o arquivo `local.cfg`, que contém propriedades específicas da aplicação DSpace.
+
+O arquivo `local.cfg` sobrescreve as configurações padrão do DSpace e permite personalizar funcionalidades que não estão disponíveis por meio das variáveis de ambiente.
+
+### Exemplo de configuração
+
+```properties
+# Configurações de e-mail
+mail.server = smtp.gmail.com
+mail.server.username = usuario@dominio.com
+mail.server.password = senha-ou-app-password
+mail.server.port = 587
+```
+
+### Observações
+
+As propriedades listadas abaixo são gerenciadas pela implantação Docker e não devem ser modificadas neste arquivo.
+
+Propriedades fixas:
+- dspace.dir
+- dspace.server.ssr.url
+- db.url
+- solr.server
+
+Esses valores são necessários para a comunicação entre os containers na rede interna do Docker. Alterá-los pode impedir que o DSpace se conecte ao PostgreSQL, Solr ou outros serviços internos, causando falhas na inicialização ou funcionamento da aplicação.
+
+As propriedades abaixo também são gerenciadas pelo Docker Compose:
+- dspace.name               (proveniente de DSPACE_NAME)
+- dspace.server.url         (proveniente de DSPACE_SERVER_URL)
+- dspace.ui.url             (proveniente de DSPACE_UI_URL)
+- db.username               (proveniente de POSTGRES_USER)
+- db.password               (proveniente de POSTGRES_PASSWORD)
+
+Essas configurações devem ser alteradas no arquivo .env. Defini-las no local.cfg não produzirá efeito, pois os valores fornecidos pelo Docker Compose sobrescrevem os valores definidos neste arquivo.
+
+Correspondência entre propriedades do local.cfg e variáveis do .env:
+- dspace.name       <=> DSPACE_NAME
+- dspace.server.url <=> DSPACE_SERVER_URL
+- dspace.ui.url     <=> DSPACE_UI_URL
+- db.username       <=> POSTGRES_USER
+- db.password       <=> POSTGRES_PASSWORD
+
+* Alterações no arquivo `local.cfg` exigem a reinicialização do container do backend para que sejam aplicadas.
+
+
 
 ## Script de Deploy Automatizado (`deploy.sh`)
 
