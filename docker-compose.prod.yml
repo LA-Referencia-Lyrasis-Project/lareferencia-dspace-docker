@@ -9,7 +9,7 @@ services:
   # Banco de Dados (PostgreSQL)
   dspacedb:
     container_name: dspacedb
-    image: "docker.io/postgres:${POSTGRES_VERSION:-15}"
+    image: docker.io/postgres:${POSTGRES_VERSION:-15}
     environment:
       PGDATA: /pgdata
       POSTGRES_DB: dspace
@@ -24,7 +24,7 @@ services:
   # Solr Search Engine
   dspacesolr:
     container_name: dspacesolr
-    image: "docker.io/dspace/dspace-solr:latest"
+    image: docker.io/dspace/dspace-solr:latest
     build:
       context: ./DSpace/dspace/src/main/docker/dspace-solr/
       additional_contexts:
@@ -61,18 +61,20 @@ services:
   # Backend (DSpace REST API - Spring Boot Embarcado)
   dspace:
     container_name: dspace
-    image: "dspace:latest-prod-springboot"
+    image: dspace:latest-prod-springboot
     build:
       context: ./DSpace
       dockerfile: Dockerfile
     environment:
+      dspace__P__name: ${DSPACE_NAME}
+      dspace__P__dir: /dspace
       dspace__P__server__P__ssr__P__url: http://dspace:8080/server
-      dspace__P__server__P__url: ${dspace__P__server__P__url}
-      dspace__P__ui__P__url: ${dspace__P__ui__P__url}
-      dspace__P__name: ${dspace__P__name}
-      db__P__url: ${db__P__url}
+      dspace__P__server__P__url: ${DSPACE_SERVER_URL}
+      dspace__P__ui__P__url: ${DSPACE_UI_URL}
+      db__P__url: jdbc:postgresql://dspacedb:5432/dspace
+      db__P__username: ${POSTGRES_USER:-dspace}
+      db__P__password: ${POSTGRES_PASSWORD:-dspace}
       solr__P__server: http://dspacesolr:8983/solr
-      
       proxies__P__trusted__P__ipranges: 172.99.0
     depends_on:
       - dspacedb
@@ -83,6 +85,7 @@ services:
     volumes:
       - assetstore:/dspace/assetstore
       - ./DSpace/dspace/config:/dspace/config
+      - ./local.cfg:/dspace/config/local.cfg
     entrypoint:
       - /bin/bash
       - '-c'
@@ -102,14 +105,14 @@ services:
         TARGET_ENV: production
     environment:
       NODE_ENV: production
-      DSPACE_UI_SSL: ${DSPACE_UI_SSL}
-      DSPACE_UI_HOST: ${DSPACE_UI_HOST}
-      DSPACE_UI_PORT: ${DSPACE_UI_PORT}
-      DSPACE_UI_NAMESPACE: ${DSPACE_UI_NAMESPACE}
-      DSPACE_REST_SSL: ${DSPACE_REST_SSL}
-      DSPACE_REST_HOST: ${DSPACE_REST_HOST}
-      DSPACE_REST_PORT: ${DSPACE_REST_PORT}
-      DSPACE_REST_NAMESPACE: ${DSPACE_REST_NAMESPACE}
+      DSPACE_UI_SSL: ${DSPACE_UI_SSL:-false}
+      DSPACE_UI_HOST: ${DSPACE_UI_HOST:-0.0.0.0}
+      DSPACE_UI_PORT: ${DSPACE_UI_PORT:-4000}
+      DSPACE_UI_NAMESPACE: ${DSPACE_UI_NAMESPACE:-/}
+      DSPACE_REST_SSL: ${DSPACE_REST_SSL:-false}
+      DSPACE_REST_HOST: ${DSPACE_REST_HOST:-localhost}
+      DSPACE_REST_PORT: ${DSPACE_REST_PORT:-8080}
+      DSPACE_REST_NAMESPACE: ${DSPACE_REST_NAMESPACE:-/server}
       DSPACE_REST_SSRBASEURL: http://dspace:8080/server
     ports:
       - "4000:4000"

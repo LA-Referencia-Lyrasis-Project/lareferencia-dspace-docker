@@ -5,12 +5,14 @@ set -e
 # --- FUNÇÕES MODULARES ---
 
 carregar_env() {
-    if [ -f .env ]; then
-        export $(echo $(cat .env | sed 's/#.*//g' | xargs) | envsubst)
-    else
+    if [ ! -f .env ]; then
         echo "Erro: Arquivo .env não encontrado."
         exit 1
     fi
+
+    set -o allexport
+    source .env
+    set +o allexport
 }
 
 clonar_repositorios() {
@@ -107,7 +109,6 @@ executar_build() {
     echo "======= Reconstruindo o Ambiente de PRODUÇÃO ======="
     # Injeta tolerância a falhas de rede para evitar 'Connection reset' no Maven
     export MAVEN_OPTS="-Dhttp.keepAlive=false -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.pool=false"
-    
     docker compose -f docker-compose.prod.yml build --no-cache
 }
 
