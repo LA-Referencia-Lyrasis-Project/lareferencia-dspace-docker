@@ -70,7 +70,7 @@ Mapping between `local.cfg` properties and `.env` variables:
 
 ## Automated Deployment Script (`deploy.sh`)
 
-The `./deploy.sh` script automates the entire application lifecycle. It manages Git updates, fixes critical infrastructure permissions, and injects network fault tolerance parameters (`MAVEN_OPTS`) to mitigate connection issues (`Connection reset`) during backend builds.
+The `./deploy.sh` script automates the entire application lifecycle.
 
 ### Usage
 
