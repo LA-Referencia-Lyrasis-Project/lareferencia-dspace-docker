@@ -132,10 +132,11 @@ En estos casos, primero debe realizarse el proceso oficial de actualización de 
 
 ## Configuración Inicial
 
-1. Copie el archivo de ejemplo para crear su archivo `.env`:
+1. Copia los archivos de ejemplo para crear tu archivo `.env` y tu archivo `local.cfg`:
 
    ```bash
    cp .env.example .env
+   cp local.cfg.example local.cfg
    ```
 
 2. Edite el archivo `.env` con sus configuraciones específicas (repositorios, ramas/tags, credenciales, etc.).
@@ -285,7 +286,11 @@ docker compose -f docker-compose.prod.yml stop dspace-angular
 
 ## Registros y Comandos Útiles
 
-### Ver Registros de Docker
+### Monitorización de registros de Docker (Salida estándar)
+
+Para ver y monitorizar los registros de salida de un contenedor específico en tiempo real: `docker logs -f <nombre-del-servicio>`
+
+Ejemplo:
 
 ```bash
 docker logs -f dspace-angular

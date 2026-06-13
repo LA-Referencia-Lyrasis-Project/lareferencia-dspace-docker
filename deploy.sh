@@ -203,10 +203,10 @@ remove_containers() {
     echo "======= Removing Existing Containers ======="
     docker compose -f docker-compose.prod.yml down --remove-orphans
     
-    # Apaga a pasta temporária usando um container para evitar o erro de 'Permission denied' do host
-    if [ -d "./migration/db" ]; then
+    # Apaga a pasta de migração por completo usando um container temporário
+    if [ -d "./migration" ]; then
         echo "Cleaning up temporary migration directory..."
-        docker run --rm -v "$(pwd)"/migration:/mnt alpine sh -c "rm -rf /mnt/db"
+        docker run --rm -v "$(pwd)":/workspace alpine sh -c "rm -rf /workspace/migration"
     fi
 }
 
@@ -249,6 +249,7 @@ case "$1" in
         check_locks
         clone_repositories
         patch_dockerfiles
+        remove_containers
         migrate_legacy_data
         build_environment
         start_containers

@@ -78,10 +78,10 @@ Use this option when you already have a standalone DSpace installation running o
 
 During migration, the following data is transferred:
 
-* PostgreSQL database
-* Assetstore
-* Solr indexes
-* `local.cfg` file
+- PostgreSQL database
+- Assetstore
+- Solr indexes
+- `local.cfg` file
 
 ### Migration Requirements
 
@@ -89,10 +89,10 @@ The migration process is designed to convert an existing standalone DSpace insta
 
 To ensure compatibility, the source installation and the Docker installation must use:
 
-* The same DSpace version
-* The same source code
-* The same customizations and extensions
-* Compatible configurations
+- The same DSpace version
+- The same source code
+- The same customizations and extensions
+- Compatible configurations
 
 #### Examples
 
@@ -126,10 +126,11 @@ In these scenarios, you must first perform the official DSpace upgrade process a
 
 ## Initial Configuration
 
-1. Copy the example file to create your `.env` file:
+1. Copy the example files to create your `.env` file and your `local.cfg` file:
 
    ```bash
    cp .env.example .env
+   cp local.cfg.example local.cfg
    ```
 
 2. Edit the `.env` file with your specific settings (repositories, branches/tags, credentials, etc.).
@@ -192,30 +193,30 @@ The properties listed below are managed by the Docker deployment and should not 
 
 #### Fixed Properties
 
-* dspace.dir
-* dspace.server.ssr.url
-* db.url
-* solr.server
+- dspace.dir
+- dspace.server.ssr.url
+- db.url
+- solr.server
 
 These values are required for communication between containers on the internal Docker network. Changing them may prevent DSpace from connecting to PostgreSQL, Solr, or other internal services, causing startup or runtime failures.
 
 #### Properties Managed by Docker Compose
 
-* dspace.name (from `DSPACE_NAME`)
-* dspace.server.url (from `DSPACE_SERVER_URL`)
-* dspace.ui.url (from `DSPACE_UI_URL`)
-* db.username (from `POSTGRES_USER`)
-* db.password (from `POSTGRES_PASSWORD`)
+- dspace.name (from `DSPACE_NAME`)
+- dspace.server.url (from `DSPACE_SERVER_URL`)
+- dspace.ui.url (from `DSPACE_UI_URL`)
+- db.username (from `POSTGRES_USER`)
+- db.password (from `POSTGRES_PASSWORD`)
 
 These settings must be modified in the `.env` file. Defining them in `local.cfg` will have no effect because the values provided by Docker Compose override any values defined in this file.
 
 #### Mapping Between `local.cfg` and `.env`
 
-* dspace.name ⇔ DSPACE_NAME
-* dspace.server.url ⇔ DSPACE_SERVER_URL
-* dspace.ui.url ⇔ DSPACE_UI_URL
-* db.username ⇔ POSTGRES_USER
-* db.password ⇔ POSTGRES_PASSWORD
+- dspace.name ⇔ DSPACE_NAME
+- dspace.server.url ⇔ DSPACE_SERVER_URL
+- dspace.ui.url ⇔ DSPACE_UI_URL
+- db.username ⇔ POSTGRES_USER
+- db.password ⇔ POSTGRES_PASSWORD
 
 > Changes made to `local.cfg` require restarting the backend container before they take effect.
 
@@ -252,10 +253,10 @@ For maintenance and troubleshooting scenarios, you do not need to stop the entir
 
 ### Available Services
 
-* **dspacedb**: PostgreSQL database.
-* **dspacesolr**: Apache Solr search engine.
-* **dspace**: DSpace REST backend.
-* **dspace-angular**: Angular SSR frontend.
+- **dspacedb**: PostgreSQL database.
+- **dspacesolr**: Apache Solr search engine.
+- **dspace**: DSpace REST backend.
+- **dspace-angular**: Angular SSR frontend.
 
 ### Restart a Service
 
@@ -279,7 +280,11 @@ docker compose -f docker-compose.prod.yml stop dspace-angular
 
 ## Logs and Useful Commands
 
-### View Docker Logs
+### Docker Log Monitoring (Standard Output)
+
+To view and track the output logs of a specific container in real time: `docker logs -f <service-name>`
+
+Example:
 
 ```bash
 docker logs -f dspace-angular
