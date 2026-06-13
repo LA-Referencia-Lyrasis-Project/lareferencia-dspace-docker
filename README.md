@@ -1,10 +1,11 @@
-# Gestión del Entorno DSpace en Producción
+# Gestión del Entorno DSpace (Producción)
 
-Este repositorio centraliza la orquestación y el despliegue automatizado de la plataforma DSpace (Backend Spring Boot, Frontend Angular SSR, PostgreSQL y Apache Solr) utilizando Docker de forma modular en entornos de producción.
+Este repositorio centraliza la orquestación y el despliegue automatizado de la plataforma DSpace (Backend Spring Boot, Frontend Angular SSR, PostgeSQL y Apache Solr) utilizando Docker de forma modular.
 
 Idiomas:
--  Español (este documento)
--  [Inglés](README.en.md)
+
+- Español (este documento)
+- [Inglés](README.en.md)
 - [Portugués](README.pt-BR.md)
 
 ---
@@ -13,15 +14,167 @@ Idiomas:
 
 Antes de ejecutar el script de despliegue, es obligatorio configurar las variables de entorno que controlarán la clonación de repositorios, la construcción de imágenes y las credenciales de la infraestructura.
 
+### Requisitos Previos
+
+Antes de utilizar este proyecto, asegúrese de cumplir los siguientes requisitos.
+
+#### Docker y Docker Compose
+
+Instale Docker Engine y Docker Compose Plugin siguiendo la documentación oficial de Docker.
+
+Verifique la instalación:
+
+```bash
+docker --version
+docker compose version
+```
+
+#### Git
+
+Git se utiliza para clonar y actualizar automáticamente los repositorios de DSpace y DSpace Angular.
+
+Verifique la instalación:
+
+```bash
+git --version
+```
+
+#### Usuario con Permisos para Docker
+
+El usuario que ejecutará el script `deploy.sh` debe tener permisos para ejecutar comandos Docker.
+
+Verifique:
+
+```bash
+docker ps
+```
+
+Si aparece un error de permisos, agregue el usuario al grupo `docker`:
+
+```bash
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+O cierre e inicie sesión nuevamente.
+
+---
+
+## Instalación Inicial o Migración
+
+⚠️ **Importante:** Los comandos `install` y `migrate` deben ejecutarse únicamente una vez durante la creación inicial del entorno.
+
+Después de la implementación inicial, utilice únicamente los comandos de mantenimiento (`update`, `rebuild`, `restart` y `stop`).
+
+### Opción 1 — Instalación Nueva
+
+Utilice esta opción cuando vaya a desplegar un entorno DSpace completamente nuevo, sin datos existentes.
+
+```bash
+./deploy.sh install
+```
+
+### Opción 2 — Migración de una Instalación Existente
+
+Utilice esta opción cuando ya exista una instalación DSpace ejecutándose fuera de contenedores (standalone) y desee migrarla a Docker.
+
+```bash
+./deploy.sh migrate
+```
+
+Durante la migración se transfieren:
+
+- Base de datos PostgreSQL
+- Assetstore
+- Índices de Solr
+- Archivo `local.cfg`
+
+### Requisitos de la Migración
+
+La migración fue diseñada para convertir una instalación DSpace standalone existente en una implementación Docker equivalente.
+
+Para garantizar la compatibilidad, la instalación de origen y la instalación Docker deben utilizar:
+
+- La misma versión de DSpace
+- El mismo código fuente
+- Las mismas personalizaciones y extensiones
+- Configuraciones compatibles
+
+#### Ejemplos
+
+✅ Compatible:
+
+```text
+DSpace 10.0 personalizado → DSpace 10.0 personalizado en Docker
+```
+
+✅ Compatible:
+
+```text
+DSpace 9.1 → DSpace 9.1 en Docker
+```
+
+❌ No compatible:
+
+```text
+DSpace 8.x → DSpace 10.x
+```
+
+❌ No compatible:
+
+```text
+DSpace 7.x → DSpace 9.x
+```
+
+En estos casos, primero debe realizarse el proceso oficial de actualización de DSpace y posteriormente la migración a Docker.
+
+---
+
+## Configuración Inicial
+
 1. Copie el archivo de ejemplo para crear su archivo `.env`:
 
    ```bash
    cp .env.example .env
    ```
 
-2. Edite el archivo `.env` con su configuración específica (repositorios, etiquetas/ramas, credenciales, etc.).
+2. Edite el archivo `.env` con sus configuraciones específicas (repositorios, ramas/tags, credenciales, etc.).
+
 3. Configure el archivo `local.cfg` con las propiedades específicas de DSpace (correo electrónico, autenticación externa, etc.).
-4. ⚠️ **Advertencia Crítica:** Cambie la variable `POSTGRES_PASSWORD` por una contraseña segura de su elección antes de iniciar el entorno por primera vez.
+
+4. ⚠️ Atención: Cambie la variable `POSTGRES_PASSWORD` por una contraseña segura antes de iniciar el entorno por primera vez.
+
+---
+
+# Flujo Recomendado
+
+```text
+                           Primera Ejecución
+                                   │
+                  ┌────────────────┴────────────────┐
+                  │                                 │
+                  ▼                                 ▼
+         ./deploy.sh install             ./deploy.sh migrate
+                  │                                 │
+                  └────────────────┬────────────────┘
+                                   ▼
+                        Entorno en Producción
+                                   │
+        ┌──────────────────────────┼──────────────────────────┐
+        │                          │                          │
+        ▼                          ▼                          ▼
+      update                    rebuild                   restart
+        │                          │                          │
+ Actualiza código         Reconstruye imágenes      Reinicia contenedores
+ e imágenes               sin actualizar código
+                                   │
+                                   ▼
+                                 stop
+                                   │
+                     Detiene temporalmente el entorno
+```
+
+---
 
 ## Configuración de DSpace (`local.cfg`)
 
@@ -29,7 +182,7 @@ Además del archivo `.env`, puede configurar el archivo `local.cfg`, que contien
 
 El archivo `local.cfg` sobrescribe la configuración predeterminada de DSpace y permite personalizar funcionalidades que no están disponibles mediante variables de entorno.
 
-### Ejemplo de configuración
+### Ejemplo de Configuración
 
 ```properties
 # Configuración de correo electrónico
@@ -41,43 +194,44 @@ mail.server.port = 587
 
 ### Observaciones
 
-Las propiedades que se enumeran a continuación son administradas por la implementación Docker y no deben modificarse en el archivo `local.cfg`.
+Las propiedades indicadas a continuación son administradas por la implementación Docker y no deben modificarse en el archivo `local.cfg`.
 
-Propiedades fijas:
+#### Propiedades Fijas
 
-* `dspace.dir`
-* `dspace.server.ssr.url`
-* `db.url`
-* `solr.server`
+- dspace.dir
+- dspace.server.ssr.url
+- db.url
+- solr.server
 
-Estos valores son necesarios para la comunicación entre los contenedores de la red interna de Docker. Modificarlos puede impedir que DSpace se conecte a PostgreSQL, Solr u otros servicios internos, provocando errores durante el inicio o funcionamiento de la aplicación.
+Estos valores son necesarios para la comunicación entre los contenedores dentro de la red interna de Docker. Modificarlos puede impedir que DSpace se conecte a PostgreSQL, Solr u otros servicios internos, provocando errores durante el inicio o funcionamiento de la aplicación.
 
-Las siguientes propiedades también son administradas por Docker Compose:
+#### Propiedades Administradas por Docker Compose
 
-* `dspace.name` (proporcionada por `DSPACE_NAME`)
-* `dspace.server.url` (proporcionada por `DSPACE_SERVER_URL`)
-* `dspace.ui.url` (proporcionada por `DSPACE_UI_URL`)
-* `db.username` (proporcionada por `POSTGRES_USER`)
-* `db.password` (proporcionada por `POSTGRES_PASSWORD`)
+- dspace.name (proveniente de `DSPACE_NAME`)
+- dspace.server.url (proveniente de `DSPACE_SERVER_URL`)
+- dspace.ui.url (proveniente de `DSPACE_UI_URL`)
+- db.username (proveniente de `POSTGRES_USER`)
+- db.password (proveniente de `POSTGRES_PASSWORD`)
 
-Estas configuraciones deben modificarse en el archivo `.env`. Definirlas en `local.cfg` no tendrá efecto, ya que los valores proporcionados por Docker Compose sobrescriben los valores definidos en este archivo.
+Estas configuraciones deben modificarse en el archivo `.env`. Definirlas en `local.cfg` no tendrá efecto, ya que los valores proporcionados por Docker Compose sobrescriben cualquier valor definido en este archivo.
 
-Correspondencia entre las propiedades de `local.cfg` y las variables de `.env`:
+#### Correspondencia entre `local.cfg` y `.env`
 
-* `dspace.name` ⇔ `DSPACE_NAME`
-* `dspace.server.url` ⇔ `DSPACE_SERVER_URL`
-* `dspace.ui.url` ⇔ `DSPACE_UI_URL`
-* `db.username` ⇔ `POSTGRES_USER`
-* `db.password` ⇔ `POSTGRES_PASSWORD`
+- dspace.name ⇔ DSPACE_NAME
+- dspace.server.url ⇔ DSPACE_SERVER_URL
+- dspace.ui.url ⇔ DSPACE_UI_URL
+- db.username ⇔ POSTGRES_USER
+- db.password ⇔ POSTGRES_PASSWORD
 
-* Los cambios realizados en el archivo `local.cfg` requieren reiniciar el contenedor backend para que surtan efecto.
+> Los cambios realizados en `local.cfg` requieren reiniciar el contenedor backend para que surtan efecto.
 
+---
 
 ## Script de Despliegue Automatizado (`deploy.sh`)
 
-El script `./deploy.sh` automatiza todo el ciclo de vida de la aplicación. 
+El script `./deploy.sh` automatiza todo el ciclo de vida de la aplicación.
 
-### Uso
+### Cómo Utilizarlo
 
 Asegúrese de que el script tenga permisos de ejecución:
 
@@ -85,90 +239,71 @@ Asegúrese de que el script tenga permisos de ejecución:
 chmod +x deploy.sh
 ```
 
-Ejecute uno de los siguientes comandos (utilice `sudo` si su usuario no pertenece al grupo `docker`):
+### Comandos Disponibles
 
-| Comando               | Descripción                                                                                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `./deploy.sh install` | Realiza la clonación inicial de los repositorios (backend/frontend), aplica correcciones de permisos, construye las imágenes y levanta los contenedores.           |
-| `./deploy.sh update`  | Accede a cada repositorio, ejecuta `git pull` para obtener el código más reciente, reconstruye todas las imágenes desde cero (`--no-cache`) y reinicia el entorno. |
-| `./deploy.sh rebuild` | Fuerza la reconstrucción completa de todas las imágenes Docker locales sin actualizar el código fuente y reinicia los contenedores.                                |
-| `./deploy.sh restart` | Elimina y recrea rápidamente todos los contenedores sin modificar las imágenes ni el código. Útil para aplicar cambios en el archivo `.env`.                       |
+| Comando               | Descripción                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| `./deploy.sh install` | Instala un nuevo entorno DSpace.                                            |
+| `./deploy.sh migrate` | Migra una instalación DSpace standalone existente a Docker.                 |
+| `./deploy.sh update`  | Actualiza el código fuente, reconstruye las imágenes y reinicia el entorno. |
+| `./deploy.sh rebuild` | Reconstruye las imágenes Docker sin actualizar el código fuente.            |
+| `./deploy.sh restart` | Reinicia los contenedores utilizando las imágenes existentes.               |
+| `./deploy.sh stop`    | Detiene todos los contenedores del entorno sin eliminarlos.                 |
 
-## 🛠️ Gestión Granular de Servicios (Docker Compose)
+---
 
-Durante tareas de mantenimiento o depuración, no es necesario detener todo el ecosistema. Docker Compose permite detener, iniciar o reiniciar servicios de manera individual.
+## Gestión Granular de Servicios (Docker Compose)
 
-> Nota sobre permisos: Si es necesario, agregue el prefijo `sudo` a los comandos `docker` y `docker compose`.
+En tareas de mantenimiento o depuración no es necesario detener todo el ecosistema. Docker Compose permite gestionar servicios individualmente.
 
 ### Servicios Disponibles
 
-* **`dspacedb`**: Base de datos PostgreSQL donde se almacenan los metadatos y esquemas.
-* **`dspacesolr`**: Motor de búsqueda Apache Solr (núcleos de búsqueda, estadísticas y autoridad).
-* **`dspace`**: Backend de la aplicación (API REST Spring Boot embebida).
-* **`dspace-angular`**: Frontend de la aplicación ejecutándose en modo Server-Side Rendering (SSR) con Node.js.
+- **dspacedb**: Base de datos PostgreSQL.
+- **dspacesolr**: Motor de búsqueda Apache Solr.
+- **dspace**: Backend REST de DSpace.
+- **dspace-angular**: Frontend Angular SSR.
 
-### Detener y Eliminar un Servicio Específico
-
-```bash
-docker compose -f docker-compose.prod.yml down <nombre-del-servicio>
-```
-
-Ejemplo:
-
-```bash
-docker compose -f docker-compose.prod.yml down dspace-angular
-```
-
-### Crear e Iniciar un Servicio Específico
-
-```bash
-docker compose -f docker-compose.prod.yml up -d <nombre-del-servicio>
-```
-
-Ejemplo:
-
-```bash
-docker compose -f docker-compose.prod.yml up -d dspacesolr
-```
-
-### Reiniciar un Servicio Específico
-
-```bash
-docker compose -f docker-compose.prod.yml restart <nombre-del-servicio>
-```
-
-Ejemplo:
+### Reiniciar un Servicio
 
 ```bash
 docker compose -f docker-compose.prod.yml restart dspace
 ```
 
-## Logs y Comandos Útiles
-
-> Nota sobre permisos: Si es necesario, agregue el prefijo `sudo` a los comandos `docker` y `docker compose`.
-
-### Supervisión de Logs de Docker
+### Iniciar un Servicio
 
 ```bash
-docker logs -f <nombre-del-servicio>
+docker compose -f docker-compose.prod.yml up -d dspacesolr
+```
 
-# Ejemplo para el frontend
+### Detener un Servicio
+
+```bash
+docker compose -f docker-compose.prod.yml stop dspace-angular
+```
+
+---
+
+## Registros y Comandos Útiles
+
+### Ver Registros de Docker
+
+```bash
 docker logs -f dspace-angular
 ```
 
-### Supervisión de Logs Internos de DSpace
+### Ver Registros Internos de DSpace
 
 ```bash
 docker exec -it dspace tail -f /dspace/log/dspace.log
 ```
 
-### Verificar la Configuración Activa del Frontend
+### Ver Configuración Activa del Frontend
 
 ```bash
 docker exec -it dspace-angular cat /app/src/assets/config.json
 ```
 
-### Crear un Usuario Administrador (E-Person)
+### Crear un Usuario Administrador
 
 ```bash
 docker exec -it dspace /dspace/bin/dspace create-administrator

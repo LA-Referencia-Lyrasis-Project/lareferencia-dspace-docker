@@ -1,3 +1,6 @@
 DSpace
 dspace-angular
 .env
+.lock_migrated
+.lock_installed
+*.sql
