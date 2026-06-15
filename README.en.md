@@ -1,309 +1,190 @@
 # DSpace Environment Management (Production)
 
-This repository centralizes the orchestration and automated deployment of the DSpace platform (Spring Boot Backend, Angular SSR Frontend, PostgreSQL and Apache Solr) using Docker in a modular way.
+This repository centralizes the orchestration and automated deployment of the DSpace platform (Spring Boot Backend, Angular SSR Frontend, PostgreSQL, and Apache Solr) using Docker in a modular architecture.
 
 ---
 
-## Prerequisites and Initial Configuration
+## 1. Prerequisites
 
-Before running the deployment script, you must configure the environment variables that will be used for repository cloning, image building, and infrastructure credentials.
+Before starting, ensure that your infrastructure meets the minimum software and system permission requirements.
 
-### Prerequisites
+### Required Tools
 
-Before using this project, ensure that the following requirements are met.
+- **Docker Engine** and **Docker Compose Plugin** installed.
+- **Git** installed.
 
-#### Docker and Docker Compose
-
-Install Docker Engine and the Docker Compose Plugin according to the official Docker documentation.
-
-Verify the installation:
+Verify the installed versions using the following commands:
 
 ```bash
 docker --version
 docker compose version
-```
-
-#### Git
-
-Git is used to automatically clone and update the DSpace and DSpace Angular repositories.
-
-Verify the installation:
-
-```bash
 git --version
+
 ```
 
-#### User with Docker Permissions
+### System User Configuration
 
-The user responsible for running the `deploy.sh` script must have permission to execute Docker commands.
-
-Verify:
+For security purposes in a production environment, create a dedicated system user named `dspace` and add it to the Docker group:
 
 ```bash
-docker ps
-```
+# Create the 'dspace' system user with a home directory
+sudo useradd -m -s /bin/bash dspace
 
-If you receive a permission error, add the user to the `docker` group:
+# Set a password for the user
+sudo passwd dspace
 
-```bash
-sudo usermod -aG docker $USER
+# Add the user to the docker group
+sudo usermod -aG docker dspace
 newgrp docker
-```
 
-Or log out and log back in.
+```
 
 ---
 
-## Initial Installation or Migration
+## 2. Clone and Initial Configuration
 
-⚠️ **Important:** The `install` and `migrate` commands should only be executed once during the initial environment setup.
+### Downloading the Project
 
-After the initial deployment, only use the maintenance commands (`update`, `rebuild`, `restart`, and `stop`).
-
-### Option 1 — New Installation
-
-Use this option when deploying a completely new DSpace environment without any existing data.
+Navigate to the `/opt` directory, clone the repository, and adjust the ownership permissions for the newly created user:
 
 ```bash
-./deploy.sh install
+cd /opt
+sudo git clone https://github.com/LA-Referencia-Lyrasis-Project/lareferencia-dspace-docker-deploy.git
+sudo chown -R dspace:dspace /opt/lareferencia-dspace-docker-deploy
+
 ```
 
-### Option 2 — Migration from an Existing Installation
-
-Use this option when you already have a standalone DSpace installation running outside Docker and want to migrate it to Docker.
+> ⚠️ **From this point forward, switch to the `dspace` user:** 
 
 ```bash
-./deploy.sh migrate
+sudo su - dspace 
+
+# and navigate to 
+cd /opt/lareferencia-dspace-docker-deploy
+
 ```
 
-During migration, the following data is transferred:
+### Environment Configuration Files
 
-- PostgreSQL database
-- Assetstore
-- Solr indexes
-- `local.cfg` file
+Create your local configuration files based on the repository templates:
 
-### Migration Requirements
+```bash
+cp .env.example .env
+cp local.cfg.example local.cfg
 
-The migration process is designed to convert an existing standalone DSpace installation into an equivalent Docker deployment.
-
-To ensure compatibility, the source installation and the Docker installation must use:
-
-- The same DSpace version
-- The same source code
-- The same customizations and extensions
-- Compatible configurations
-
-#### Examples
-
-✅ Compatible:
-
-```text
-Customized DSpace 10.0 → Customized DSpace 10.0 in Docker
 ```
 
-✅ Compatible:
+1. **Edit the `.env` file:** Configure your environment variables (repositories, tags/branches, credentials, and ports).
+2. **⚠️ Critical Attention:** Change the `POSTGRES_PASSWORD` variable in the `.env` file to a strong password before starting the environment for the first time.
+3. **Edit the `local.cfg` file:** Add DSpace application-specific properties (metadata, SMTP/Email server, external authentication, etc.).
 
-```text
-DSpace 9.1 → DSpace 9.1 in Docker
-```
+### Important Rules for `local.cfg`
 
-❌ Not Compatible:
+To prevent networking conflicts within the internal Docker network, strictly adhere to the following restrictions:
 
-```text
-DSpace 8.x → DSpace 10.x
-```
+| Property Type          | Forbidden Keys in `local.cfg`                                                     | Reason / Where to Change                                                                    |
+| ---------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Fixed by Docker**    | `dspace.dir`, `dspace.server.ssr.url`, `db.url`, `solr.server`                    | **Do not modify**. These values are required for internal communication between containers. |
+| **Managed via `.env**` | `dspace.name`, `dspace.server.url`, `dspace.ui.url`, `db.username`, `db.password` | **Define in `.env` only**. These values are dynamically injected via Compose.               |
 
-❌ Not Compatible:
-
-```text
-DSpace 7.x → DSpace 9.x
-```
-
-In these scenarios, you must first perform the official DSpace upgrade process and only then migrate to Docker.
+> 💡 **Note:** Any future modifications made to the `local.cfg` file will require a restart of the backend container (`dspace`) to take effect.
 
 ---
 
-## Initial Configuration
+## 3. Available Commands (`deploy.sh`)
 
-1. Copy the example files to create your `.env` file and your `local.cfg` file:
-
-   ```bash
-   cp .env.example .env
-   cp local.cfg.example local.cfg
-   ```
-
-2. Edit the `.env` file with your specific settings (repositories, branches/tags, credentials, etc.).
-
-3. Configure the `local.cfg` file with DSpace-specific properties (email, external authentication, integrations, etc.).
-
-4. ⚠️ Critical Warning: Change the `POSTGRES_PASSWORD` variable to a strong password before starting the environment for the first time.
-
----
-
-# Recommended Workflow
-
-```text
-                            First Execution
-                                   │
-                  ┌────────────────┴────────────────┐
-                  │                                 │
-                  ▼                                 ▼
-         ./deploy.sh install             ./deploy.sh migrate
-                  │                                 │
-                  └────────────────┬────────────────┘
-                                   ▼
-                        Production Environment
-                                   │
-        ┌──────────────────────────┼──────────────────────────┐
-        │                          │                          │
-        ▼                          ▼                          ▼
-      update                    rebuild                   restart
-        │                          │                          │
- Updates source code       Rebuilds images         Restarts containers
- and Docker images         without updating code
-                                   │
-                                   ▼
-                                 stop
-                                   │
-                    Temporarily stops the environment
-```
-
----
-
-## DSpace Configuration (`local.cfg`)
-
-In addition to the `.env` file, you may configure the `local.cfg` file, which contains DSpace application-specific properties.
-
-The `local.cfg` file overrides the default DSpace configuration and allows customization of features that are not exposed through environment variables.
-
-### Configuration Example
-
-```properties
-# Email settings
-mail.server = smtp.gmail.com
-mail.server.username = user@example.com
-mail.server.password = password-or-app-password
-mail.server.port = 587
-```
-
-### Notes
-
-The properties listed below are managed by the Docker deployment and should not be modified in the `local.cfg` file.
-
-#### Fixed Properties
-
-- dspace.dir
-- dspace.server.ssr.url
-- db.url
-- solr.server
-
-These values are required for communication between containers on the internal Docker network. Changing them may prevent DSpace from connecting to PostgreSQL, Solr, or other internal services, causing startup or runtime failures.
-
-#### Properties Managed by Docker Compose
-
-- dspace.name (from `DSPACE_NAME`)
-- dspace.server.url (from `DSPACE_SERVER_URL`)
-- dspace.ui.url (from `DSPACE_UI_URL`)
-- db.username (from `POSTGRES_USER`)
-- db.password (from `POSTGRES_PASSWORD`)
-
-These settings must be modified in the `.env` file. Defining them in `local.cfg` will have no effect because the values provided by Docker Compose override any values defined in this file.
-
-#### Mapping Between `local.cfg` and `.env`
-
-- dspace.name ⇔ DSPACE_NAME
-- dspace.server.url ⇔ DSPACE_SERVER_URL
-- dspace.ui.url ⇔ DSPACE_UI_URL
-- db.username ⇔ POSTGRES_USER
-- db.password ⇔ POSTGRES_PASSWORD
-
-> Changes made to `local.cfg` require restarting the backend container before they take effect.
-
----
-
-## Automated Deployment Script (`deploy.sh`)
-
-The `./deploy.sh` script automates the entire application lifecycle.
-
-### Usage
+The `./deploy.sh` script automates the infrastructure lifecycle. It includes a mechanism that detects `root` privileges on the first run to set up initial structures, then transparently delegates all subsequent processing to the `dspace` user.
 
 Ensure the script has execution permissions:
 
 ```bash
 chmod +x deploy.sh
+
 ```
 
-### Available Commands
+### Primary Operations (Run once)
 
-| Command               | Description                                                         |
-| --------------------- | ------------------------------------------------------------------- |
-| `./deploy.sh install` | Performs the initial installation of a new DSpace environment.      |
-| `./deploy.sh migrate` | Migrates an existing standalone DSpace installation to Docker.      |
-| `./deploy.sh update`  | Updates source code, rebuilds images, and restarts the environment. |
-| `./deploy.sh rebuild` | Rebuilds Docker images without updating source code.                |
-| `./deploy.sh restart` | Restarts containers using the current images.                       |
-| `./deploy.sh stop`    | Stops all environment containers without removing them.             |
+- **Fresh Installation from Scratch:**
+
+```bash
+./deploy.sh install
+
+```
+
+- **Migrating an Existing Installation (Standalone to Docker):**
+
+```bash
+./deploy.sh migrate
+
+```
+
+> ⚠️ **Migration Compatibility:** The source installation and the Docker container **must use the exact same DSpace version** (e.g., 9.x to 9.x). Do not use this migration script to perform version upgrades (e.g., 7.x to 9.x). Upgrade your standalone DSpace instance before migrating.
+
+### Lifecycle and Maintenance Operations
+
+| Command               | Description                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------- |
+| `./deploy.sh update`  | Updates the source code (Git), rebuilds images without cache, and restarts the environment. |
+| `./deploy.sh rebuild` | Rebuilds local Docker images keeping the current code intact, then restarts.                |
+| `./deploy.sh restart` | Restarts all containers reusing the current images.                                         |
+| `./deploy.sh start`   | Starts existing containers.                                                                 |
+| `./deploy.sh stop`    | Stops the environment containers without removing volumes or data.                          |
 
 ---
 
-## Granular Service Management (Docker Compose)
+## 4. Useful Commands and Granular Operations
 
-For maintenance and troubleshooting scenarios, you do not need to stop the entire ecosystem. Docker Compose allows individual service management.
+For debugging or maintenance scenarios, you can manage specific services (`dspacedb`, `dspacesolr`, `dspace`, `dspace-angular`) in isolation using native Docker Compose.
 
-### Available Services
-
-- **dspacedb**: PostgreSQL database.
-- **dspacesolr**: Apache Solr search engine.
-- **dspace**: DSpace REST backend.
-- **dspace-angular**: Angular SSR frontend.
-
-### Restart a Service
+### Managing Individual Services
 
 ```bash
+# Restart only the DSpace backend
 docker compose -f docker-compose.prod.yml restart dspace
-```
 
-### Start a Service
-
-```bash
+# Start only the Solr engine
 docker compose -f docker-compose.prod.yml up -d dspacesolr
+
+# Stop the Frontend Angular SSR service
+docker compose -f docker-compose.prod.yml stop dspace-angular
+
 ```
 
-### Stop a Service
+### DSpace Utilities
 
 ```bash
-docker compose -f docker-compose.prod.yml stop dspace-angular
+# Create the initial administrator account (DSpace CLI)
+docker exec -it dspace /dspace/bin/dspace create-administrator
+
+# Solr Reindexing (Discovery)
+docker exec -it dspace /dspace/bin/dspace index-discovery -b
+
+# Verify the active configuration file generated for the frontend
+docker exec -it dspace-angular cat /app/src/assets/config.json
+
 ```
 
 ---
 
-## Logs and Useful Commands
+## 5. Monitoring Logs
 
-### Docker Log Monitoring (Standard Output)
+### Docker Standard Output Logs (Stdout)
 
-To view and track the output logs of a specific container in real time: `docker logs -f <service-name>`
-
-Example:
+To follow container outputs in real-time:
 
 ```bash
+docker logs -f <service-name>
+
+# Example for the frontend:
 docker logs -f dspace-angular
+
 ```
 
-### View Internal DSpace Logs
+### DSpace Internal Application Logs
+
+To trace database persistence errors, DSpace Core routines, or debug the REST API:
 
 ```bash
 docker exec -it dspace tail -f /dspace/log/dspace.log
-```
 
-### Check Active Frontend Configuration
-
-```bash
-docker exec -it dspace-angular cat /app/src/assets/config.json
-```
-
-### Create an Administrator User
-
-```bash
-docker exec -it dspace /dspace/bin/dspace create-administrator
 ```
