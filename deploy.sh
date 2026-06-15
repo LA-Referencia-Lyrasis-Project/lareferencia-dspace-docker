@@ -221,7 +221,7 @@ stop_containers() {
 }
 
 show_help() {
-    echo "Usage: $0 {install|migrate|update|rebuild|restart|stop}"
+    echo "Usage: $0 {install|migrate|update|rebuild|restart|start|stop}"
     echo
     echo "Commands:"
     echo "  install   Clone repositories and install a clean environment (Runs once)"
@@ -229,6 +229,7 @@ show_help() {
     echo "  update    Update source code, rebuild images, and restart"
     echo "  rebuild   Rebuild local images without updating source code and restart"
     echo "  restart   Restart the current containers"
+    echo "  start     Start the current containers"
     echo "  stop      Stop all running containers"
     exit 1
 }
@@ -275,6 +276,9 @@ case "$1" in
         ;;
     restart)
         remove_containers
+        start_containers
+        ;;
+    start)
         start_containers
         ;;
     stop)
