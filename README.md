@@ -5,8 +5,6 @@ This repository centralizes the orchestration and automated deployment of the DS
 
 [Versão em Português](README.pt-BR.md)
 
-[Versión en Español](README.es.md)
-
 ---
 
 ## 1. Prerequisites
