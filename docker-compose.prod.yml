@@ -39,7 +39,7 @@ services:
     user: root
     entrypoint:
       - /bin/bash
-      - '-c'
+      - "-c"
       - |
         init-var-solr
         precreate-core authority /opt/solr/server/solr/configsets/authority
@@ -90,7 +90,7 @@ services:
       - ./local.cfg:/dspace/config/local.cfg
     entrypoint:
       - /bin/bash
-      - '-c'
+      - "-c"
       - |
         while (!</dev/tcp/dspacedb/5432) > /dev/null 2>&1; do sleep 1; done;
         /dspace/bin/dspace database migrate
@@ -133,3 +133,4 @@ volumes:
   solr_data:
     name: dspace_docker_deploy_solr_data
   pgdata:
+    name: dspace-docker-deploy_pgdata
