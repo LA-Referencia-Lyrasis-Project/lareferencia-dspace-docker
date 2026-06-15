@@ -53,8 +53,8 @@ Navigate to the `/opt` directory, clone the repository, and adjust the ownership
 
 ```bash
 cd /opt
-sudo git clone https://github.com/LA-Referencia-Lyrasis-Project/lareferencia-dspace-docker-deploy.git
-sudo chown -R dspace:dspace /opt/lareferencia-dspace-docker-deploy
+sudo git clone https://github.com/projetos-codic-ibict/ibict-dspace-docker-deploy.git
+sudo chown -R dspace:dspace /opt/ibict-dspace-docker-deploy
 
 ```
 
@@ -64,7 +64,7 @@ sudo chown -R dspace:dspace /opt/lareferencia-dspace-docker-deploy
 sudo su - dspace 
 
 # and navigate to 
-cd /opt/lareferencia-dspace-docker-deploy
+cd /opt/ibict-dspace-docker-deploy
 
 ```
 
