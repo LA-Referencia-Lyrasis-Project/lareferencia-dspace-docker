@@ -83,7 +83,7 @@ services:
     networks:
       - dspacenet
     ports:
-      - "8080:8080"
+      - "${DSPACE_LOCAL_REST_PORT:-8080}:8080"
     volumes:
       - assetstore:/dspace/assetstore
       - ./DSpace/dspace/config:/dspace/config
