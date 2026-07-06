@@ -158,6 +158,7 @@ Use `-c` solo cuando el core de destino pueda limpiarse antes de la importación
 | `./dspace.sh restart`         | Reinicia los contenedores existentes sin eliminarlos ni recrearlos.                                                                                                               |
 | `./dspace.sh start`           | Inicia los contenedores existentes.                                                                                                                                               |
 | `./dspace.sh stop`            | Detiene los contenedores del ecosistema sin eliminar volúmenes ni datos.                                                                                                          |
+| `./dspace.sh health`          | Verifica si Solr, PostgreSQL, servidor backend e interfaz UI están saludables y accesibles.                                                                                      |
 | `./dspace.sh clean-migration` | Elimina archivos temporales de migración después de una migración exitosa.                                                                                                        |
 | `./dspace.sh help`            | Muestra la lista de comandos disponibles y la guía de uso.                                                                                                                         |
 
@@ -194,6 +195,9 @@ docker exec -it dspace /dspace/bin/dspace index-discovery -b
 
 # Opcional después de la migración: eliminar archivos temporales de migración
 ./dspace.sh clean-migration
+
+# Verificar la salud general de los servicios (DB, Solr, Servidor, UI)
+./dspace.sh health
 
 # Verificar la configuración de ejecución del frontend
 docker exec -it dspace-angular cat /app/dist/browser/assets/config.json

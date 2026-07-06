@@ -372,9 +372,77 @@ stop_containers() {
     docker compose -f "$COMPOSE_FILE" stop
 }
 
+check_service_running() {
+    local service="$1"
+    docker compose -f "$COMPOSE_FILE" ps --status running --services | grep -qx "$service"
+}
+
+http_status_code() {
+    local url="$1"
+    curl -sS -o /dev/null -w '%{http_code}' "$url" || printf '000'
+}
+
+check_http_endpoint() {
+    local label="$1"
+    local url="$2"
+    local code
+
+    code="$(http_status_code "$url")"
+
+    if [ "$code" -ge 200 ] && [ "$code" -lt 500 ]; then
+        echo "$label: ok (HTTP $code) -> $url"
+        return 0
+    fi
+
+    echo "$label: failed (HTTP $code) -> $url"
+    return 1
+}
+
+health_check() {
+    local status=0
+    local server_url="${DSPACE_SERVER_URL:-http://localhost:${DSPACE_LOCAL_REST_PORT:-8080}/server}"
+    local ui_url="${DSPACE_UI_URL:-http://localhost:${DSPACE_LOCAL_UI_PORT:-4000}}"
+
+    echo "======= DSpace Health Check ======="
+
+    if check_service_running "dspacedb" && docker compose -f "$COMPOSE_FILE" exec -T dspacedb pg_isready -U "${POSTGRES_USER:-dspace}" -d dspace >/dev/null 2>&1; then
+        echo "DB: ok"
+    else
+        echo "DB: failed"
+        status=1
+    fi
+
+    if check_service_running "dspacesolr" && docker compose -f "$COMPOSE_FILE" exec -T dspacesolr bash -c '</dev/tcp/localhost/8983' >/dev/null 2>&1; then
+        echo "Solr: ok"
+    else
+        echo "Solr: failed"
+        status=1
+    fi
+
+    if check_service_running "dspace" && check_http_endpoint "Server" "$server_url"; then
+        :
+    else
+        status=1
+    fi
+
+    if check_service_running "dspace-angular" && check_http_endpoint "UI" "$ui_url"; then
+        :
+    else
+        status=1
+    fi
+
+    if [ "$status" -eq 0 ]; then
+        echo "Overall: healthy"
+    else
+        echo "Overall: unhealthy"
+    fi
+
+    return "$status"
+}
+
 show_help() {
     local exit_code="${1:-1}"
-    echo "Usage: $0 {install|migrate|update|rebuild|restart|start|stop|clean-migration|help}"
+    echo "Usage: $0 {install|migrate|update|rebuild|restart|start|stop|health|clean-migration|help}"
     echo
     echo "Commands:"
     echo "  install   Clone repositories and install a clean environment (Runs once)"
@@ -384,6 +452,7 @@ show_help() {
     echo "  restart   Restart the current containers"
     echo "  start     Start the current containers"
     echo "  stop      Stop all running containers"
+    echo "  health    Check whether Solr, DB, Server, and UI are healthy"
     echo "  clean-migration  Remove temporary migration files after a successful migration"
     echo "  help      Show this help message"
     exit "$exit_code"
@@ -446,6 +515,9 @@ case "$1" in
         ;;
     stop)
         stop_containers
+        ;;
+    health)
+        health_check
         ;;
     clean-migration)
         clean_migration_files
