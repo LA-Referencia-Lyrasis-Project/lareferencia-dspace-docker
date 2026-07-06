@@ -143,7 +143,7 @@ services:
     entrypoint: []
     restart: always
 
-# Força nomes fixos globais para mapeamento seguro dos containers Alpine no deploy.sh
+# Força nomes fixos globais para mapeamento seguro dos containers Alpine no dspace.sh
 volumes:
   assetstore:
     name: dspace_docker_deploy_assetstore

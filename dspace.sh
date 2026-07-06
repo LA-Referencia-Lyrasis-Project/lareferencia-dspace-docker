@@ -373,7 +373,8 @@ stop_containers() {
 }
 
 show_help() {
-    echo "Usage: $0 {install|migrate|update|rebuild|restart|start|stop|clean-migration}"
+    local exit_code="${1:-1}"
+    echo "Usage: $0 {install|migrate|update|rebuild|restart|start|stop|clean-migration|help}"
     echo
     echo "Commands:"
     echo "  install   Clone repositories and install a clean environment (Runs once)"
@@ -384,7 +385,8 @@ show_help() {
     echo "  start     Start the current containers"
     echo "  stop      Stop all running containers"
     echo "  clean-migration  Remove temporary migration files after a successful migration"
-    exit 1
+    echo "  help      Show this help message"
+    exit "$exit_code"
 }
 
 # -----------------------------------------------------------------------------
@@ -392,7 +394,7 @@ show_help() {
 # -----------------------------------------------------------------------------
 
 if [ "${1:-}" = "" ]; then
-    show_help
+    show_help 1
 fi
 
 load_env
@@ -448,7 +450,10 @@ case "$1" in
     clean-migration)
         clean_migration_files
         ;;
+    help|-h|--help)
+        show_help 0
+        ;;
     *)
-        show_help
+        show_help 1
         ;;
 esac

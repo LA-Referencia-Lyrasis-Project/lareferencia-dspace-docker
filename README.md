@@ -97,14 +97,14 @@ To prevent networking conflicts within the internal Docker network, strictly adh
 
 ---
 
-## 3. Available Commands (`deploy.sh`)
+## 3. Available Commands (`dspace.sh`)
 
-The `./deploy.sh` script automates the infrastructure lifecycle. Run it as the dedicated `dspace` user after that user has Docker permissions.
+The `./dspace.sh` script automates the infrastructure lifecycle. Run it as the dedicated `dspace` user after that user has Docker permissions.
 
 Ensure the script has execution permissions:
 
 ```bash
-chmod +x deploy.sh
+chmod +x dspace.sh
 
 ```
 
@@ -113,14 +113,14 @@ chmod +x deploy.sh
 - **Fresh Installation from Scratch:**
 
 ```bash
-./deploy.sh install
+./dspace.sh install
 
 ```
 
 - **Migrating an Existing Installation (Standalone to Docker):**
 
 ```bash
-./deploy.sh migrate
+./dspace.sh migrate
 
 ```
 
@@ -155,12 +155,15 @@ Use `-c` only when the target core can be cleared before import. If the old inst
 
 | Command                       | Description                                                                                                                                                         |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `./deploy.sh update`          | Updates source code with Git, rebuilds images without cache, and recreates the environment. The command stops if local changes exist in cloned DSpace repositories. |
-| `./deploy.sh rebuild`         | Rebuilds local Docker images keeping the current code intact, then recreates the environment.                                                                       |
-| `./deploy.sh restart`         | Restarts existing containers without removing or recreating them.                                                                                                   |
-| `./deploy.sh start`           | Starts existing containers.                                                                                                                                         |
-| `./deploy.sh stop`            | Stops the environment containers without removing volumes or data.                                                                                                  |
-| `./deploy.sh clean-migration` | Removes temporary migration files after a successful migration.                                                                                                     |
+| `./dspace.sh install`         | Performs a fresh installation from scratch by cloning/updating configured repositories, building images, and starting the full environment.                         |
+| `./dspace.sh migrate`         | Migrates an existing standalone installation to Docker using the configured migration paths and options.                                                            |
+| `./dspace.sh update`          | Updates source code with Git, rebuilds images without cache, and recreates the environment. The command stops if local changes exist in cloned DSpace repositories. |
+| `./dspace.sh rebuild`         | Rebuilds local Docker images keeping the current code intact, then recreates the environment.                                                                       |
+| `./dspace.sh restart`         | Restarts existing containers without removing or recreating them.                                                                                                   |
+| `./dspace.sh start`           | Starts existing containers.                                                                                                                                         |
+| `./dspace.sh stop`            | Stops the environment containers without removing volumes or data.                                                                                                  |
+| `./dspace.sh clean-migration` | Removes temporary migration files after a successful migration.                                                                                                     |
+| `./dspace.sh help`            | Displays the list of available commands and usage guidance.                                                                                                         |
 
 The script generates Dockerfile overrides in `.docker-build/` instead of editing the cloned upstream repositories in place.
 
@@ -194,7 +197,7 @@ docker exec -it dspace /dspace/bin/dspace create-administrator
 docker exec -it dspace /dspace/bin/dspace index-discovery -b
 
 # Optional after migration: remove temporary migration files
-./deploy.sh clean-migration
+./dspace.sh clean-migration
 
 # Verify the frontend runtime configuration
 docker exec -it dspace-angular cat /app/dist/browser/assets/config.json
