@@ -230,3 +230,13 @@ Para rastrear errores de persistencia, rutinas del DSpace Core o depurar la API 
 docker exec -it dspace tail -f /dspace/log/dspace.log
 
 ```
+
+---
+
+## 6. Contribuciones
+
+Las contribuciones son bienvenidas.
+
+Si encuentra un error o desea solicitar una funcionalidad, por favor abra un issue con el mayor contexto posible.
+
+Si desea contribuir con código, envíe un Pull Request con una descripción clara de sus cambios.

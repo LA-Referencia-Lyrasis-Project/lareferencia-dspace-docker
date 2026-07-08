@@ -234,3 +234,13 @@ To trace database persistence errors, DSpace Core routines, or debug the REST AP
 docker exec -it dspace tail -f /dspace/log/dspace.log
 
 ```
+
+---
+
+## 6. Contributing
+
+Contributions are welcome.
+
+If you find a bug or want to request a feature, please open an issue and include as much context as possible.
+
+If you want to contribute code, submit a Pull Request with a clear description of your changes.
