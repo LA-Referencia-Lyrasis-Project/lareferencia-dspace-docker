@@ -495,26 +495,36 @@ case "$1" in
         echo "Success: Migration finished. Lock file $LOCK_MIGRATE created."
         ;;
     update)
+        start_guarded_action "update"
         update_repositories
         patch_dockerfiles
         remove_containers
         build_environment
         start_containers
+        finish_guarded_action
         ;;
     rebuild)
+        start_guarded_action "rebuild"
         patch_dockerfiles
         remove_containers
         build_environment
         start_containers
+        finish_guarded_action
         ;;
     restart)
+        start_guarded_action "restart"
         restart_containers
+        finish_guarded_action
         ;;
     start)
+        start_guarded_action "start"
         start_containers
+        finish_guarded_action
         ;;
     stop)
+        start_guarded_action "stop"
         stop_containers
+        finish_guarded_action
         ;;
     health)
         health_check
