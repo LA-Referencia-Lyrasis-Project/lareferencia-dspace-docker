@@ -190,6 +190,9 @@ docker compose -f docker-compose.prod.yml stop dspace-angular
 # Criar o usuário administrador inicial (CLI do DSpace)
 docker exec -it dspace /dspace/bin/dspace create-administrator
 
+# Gerar miniaturas para itens multimídia (CLI do DSpace)
+docker exec -it dspace /dspace/bin/dspace filter-media
+
 # Reindexação do Solr (Discovery)
 docker exec -it dspace /dspace/bin/dspace index-discovery -b
 

@@ -194,6 +194,9 @@ docker compose -f docker-compose.prod.yml stop dspace-angular
 # Create the initial administrator account (DSpace CLI)
 docker exec -it dspace /dspace/bin/dspace create-administrator
 
+# Generate thumbnails for media items (DSpace CLI)
+docker exec -it dspace /dspace/bin/dspace filter-media
+
 # Solr Reindexing (Discovery)
 docker exec -it dspace /dspace/bin/dspace index-discovery -b
 
