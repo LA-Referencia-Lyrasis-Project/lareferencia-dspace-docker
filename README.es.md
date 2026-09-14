@@ -162,6 +162,8 @@ Use `-c` solo cuando el core de destino pueda limpiarse antes de la importación
 | `./dspace.sh clean-migration` | Elimina archivos temporales de migración después de una migración exitosa.                                                                                                        |
 | `./dspace.sh help`            | Muestra la lista de comandos disponibles y la guía de uso.                                                                                                                         |
 
+Los comandos `update`, `rebuild`, `restart`, `start` y `stop` aceptan opcionalmente `backend` (Java/DSpace) o `frontend` (Angular). Sin ese parámetro, siguen operando en todo el entorno. Por ejemplo, `./dspace.sh update frontend` actualiza y reconstruye solo el frontend, sin ejecutar la construcción Maven del backend.
+
 El script genera Dockerfiles ajustados en `.docker-build/` en lugar de editar directamente los repositorios upstream clonados.
 
 ---

@@ -9,6 +9,7 @@ LOCK_IN_PROGRESS=".lock_in_progress"
 COMPOSE_FILE="docker-compose.prod.yml"
 DOCKER_BUILD_DIR=".docker-build"
 CURRENT_ACTION=""
+TARGET="all"
 
 # -----------------------------------------------------------------------------
 # FUNCTIONS
@@ -275,55 +276,64 @@ checkout_git_target() {
 }
 
 update_repositories() {
+    local target="${1:-all}"
     echo "======= Updating Repositories (Git Fetch & Checkout) ======="
     local backend_target="${DSPACE_BACKEND_TAG:-main}"
     local frontend_target="${DSPACE_FRONTEND_TAG:-main}"
 
-    if [ -d "DSpace" ]; then
-        checkout_git_target "DSpace" "Backend" "$backend_target"
-    else
-        echo "Error: DSpace directory not found."
-        exit 1
+    if [ "$target" = "all" ] || [ "$target" = "backend" ]; then
+        if [ -d "DSpace" ]; then
+            checkout_git_target "DSpace" "Backend" "$backend_target"
+        else
+            echo "Error: DSpace directory not found."
+            exit 1
+        fi
     fi
 
-    if [ -d "dspace-angular" ]; then
-        checkout_git_target "dspace-angular" "Frontend" "$frontend_target"
-    else
-        echo "Error: dspace-angular directory not found."
-        exit 1
+    if [ "$target" = "all" ] || [ "$target" = "frontend" ]; then
+        if [ -d "dspace-angular" ]; then
+            checkout_git_target "dspace-angular" "Frontend" "$frontend_target"
+        else
+            echo "Error: dspace-angular directory not found."
+            exit 1
+        fi
     fi
 }
 
 patch_dockerfiles() {
+    local target="${1:-all}"
     echo "======= Generating Dockerfile Production Overrides ======="
 
     mkdir -p "$DOCKER_BUILD_DIR"
 
-    if [ ! -f DSpace/Dockerfile ]; then
-        echo "Error: DSpace/Dockerfile not found."
-        exit 1
+    if [ "$target" = "all" ] || [ "$target" = "backend" ]; then
+        if [ ! -f DSpace/Dockerfile ]; then
+            echo "Error: DSpace/Dockerfile not found."
+            exit 1
+        fi
+
+        if grep -q "^USER root$" DSpace/Dockerfile; then
+            cp DSpace/Dockerfile "$DOCKER_BUILD_DIR/DSpace.Dockerfile"
+        else
+            sed '/RUN mkdir \/install/i USER root' DSpace/Dockerfile > "$DOCKER_BUILD_DIR/DSpace.Dockerfile"
+        fi
     fi
 
-    if grep -q "^USER root$" DSpace/Dockerfile; then
-        cp DSpace/Dockerfile "$DOCKER_BUILD_DIR/DSpace.Dockerfile"
-    else
-        sed '/RUN mkdir \/install/i USER root' DSpace/Dockerfile > "$DOCKER_BUILD_DIR/DSpace.Dockerfile"
-    fi
+    if [ "$target" = "all" ] || [ "$target" = "frontend" ]; then
+        if [ ! -f dspace-angular/Dockerfile ]; then
+            echo "Error: dspace-angular/Dockerfile not found."
+            exit 1
+        fi
 
-    if [ ! -f dspace-angular/Dockerfile ]; then
-        echo "Error: dspace-angular/Dockerfile not found."
-        exit 1
-    fi
+        sed \
+            -e '/ENV NODE_ENV=development/d' \
+            -e '/CMD npm run serve -- --host 0.0.0.0/d' \
+            -e '/ENTRYPOINT \[ "npm", "run", "serve" \]/d' \
+            -e '/CMD \["--", "--host 0.0.0.0", "--poll 5000"\]/d' \
+            -e '/# --- Native SSR Production Configuration (dspace-docker-deploy) ---/,$d' \
+            dspace-angular/Dockerfile > "$DOCKER_BUILD_DIR/dspace-angular.Dockerfile"
 
-    sed \
-        -e '/ENV NODE_ENV=development/d' \
-        -e '/CMD npm run serve -- --host 0.0.0.0/d' \
-        -e '/ENTRYPOINT \[ "npm", "run", "serve" \]/d' \
-        -e '/CMD \["--", "--host 0.0.0.0", "--poll 5000"\]/d' \
-        -e '/# --- Native SSR Production Configuration (dspace-docker-deploy) ---/,$d' \
-        dspace-angular/Dockerfile > "$DOCKER_BUILD_DIR/dspace-angular.Dockerfile"
-
-    cat <<'EOF' >> "$DOCKER_BUILD_DIR/dspace-angular.Dockerfile"
+        cat <<'EOF' >> "$DOCKER_BUILD_DIR/dspace-angular.Dockerfile"
 
 # --- Native SSR Production Configuration (dspace-docker-deploy) ---
 ENV NODE_ENV=production
@@ -333,6 +343,7 @@ RUN NODE_OPTIONS="--max_old_space_size=4096" npm run build:prod
 
 CMD ["npm", "run", "serve:ssr"]
 EOF
+    fi
     echo "Dockerfile overrides generated in $DOCKER_BUILD_DIR."
 }
 
@@ -342,10 +353,51 @@ build_environment() {
     docker compose -f "$COMPOSE_FILE" build --no-cache
 }
 
+service_for_target() {
+    case "$1" in
+        backend) printf '%s' "dspace" ;;
+        frontend) printf '%s' "dspace-angular" ;;
+        *)
+            echo "Error: invalid component '$1'. Use 'backend' or 'frontend'." >&2
+            exit 1
+            ;;
+    esac
+}
+
+target_label() {
+    case "$1" in
+        backend) printf '%s' "Backend" ;;
+        frontend) printf '%s' "Frontend" ;;
+    esac
+}
+
+build_target() {
+    local target="$1"
+    local service
+    local label
+    service="$(service_for_target "$target")"
+    label="$(target_label "$target")"
+
+    echo "======= Building $label Production Image ======="
+    export MAVEN_OPTS="-Dhttp.keepAlive=false -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.pool=false"
+    docker compose -f "$COMPOSE_FILE" build --no-cache "$service"
+}
+
 start_containers() {
     echo "======= Starting Containers ======="
     docker compose -f "$COMPOSE_FILE" up -d
     echo "======= DSpace Production Environment Online ======="
+}
+
+start_target_container() {
+    local target="$1"
+    local service
+    local label
+    service="$(service_for_target "$target")"
+    label="$(target_label "$target")"
+
+    echo "======= Starting $label Container ======="
+    docker compose -f "$COMPOSE_FILE" up -d --no-deps "$service"
 }
 
 remove_containers() {
@@ -356,6 +408,17 @@ remove_containers() {
 restart_containers() {
     echo "======= Restarting Containers ======="
     docker compose -f "$COMPOSE_FILE" restart
+}
+
+restart_target_container() {
+    local target="$1"
+    local service
+    local label
+    service="$(service_for_target "$target")"
+    label="$(target_label "$target")"
+
+    echo "======= Restarting $label Container ======="
+    docker compose -f "$COMPOSE_FILE" restart "$service"
 }
 
 clean_migration_files() {
@@ -370,6 +433,34 @@ clean_migration_files() {
 stop_containers() {
     echo "======= Stopping Containers ======="
     docker compose -f "$COMPOSE_FILE" stop
+}
+
+stop_target_container() {
+    local target="$1"
+    local service
+    local label
+    service="$(service_for_target "$target")"
+    label="$(target_label "$target")"
+
+    echo "======= Stopping $label Container ======="
+    docker compose -f "$COMPOSE_FILE" stop "$service"
+}
+
+parse_target() {
+    TARGET="${2:-all}"
+
+    if [ "$#" -gt 2 ]; then
+        echo "Error: too many arguments."
+        show_help 1
+    fi
+
+    case "$TARGET" in
+        all|backend|frontend) ;;
+        *)
+            echo "Error: invalid component '$TARGET'. Use 'backend' or 'frontend'."
+            show_help 1
+            ;;
+    esac
 }
 
 check_service_running() {
@@ -442,16 +533,17 @@ health_check() {
 
 show_help() {
     local exit_code="${1:-1}"
-    echo "Usage: $0 {install|migrate|update|rebuild|restart|start|stop|health|clean-migration|help}"
+    echo "Usage: $0 {install|migrate|update|rebuild|restart|start|stop|health|clean-migration|help} [backend|frontend]"
     echo
     echo "Commands:"
     echo "  install   Clone repositories and install a clean environment (Runs once)"
     echo "  migrate   Migrate legacy data into docker environment (Runs once)"
-    echo "  update    Update source code, rebuild images, and restart"
-    echo "  rebuild   Rebuild local images without updating source code and restart"
-    echo "  restart   Restart the current containers"
-    echo "  start     Start the current containers"
-    echo "  stop      Stop all running containers"
+    echo "  update [backend|frontend]   Update source code, rebuild images, and restart"
+    echo "  rebuild [backend|frontend]  Rebuild local images without updating source code and restart"
+    echo "  restart [backend|frontend]  Restart the current containers"
+    echo "  start [backend|frontend]    Start the current containers"
+    echo "  stop [backend|frontend]     Stop running containers"
+    echo "           Without a component, these commands act on the full environment."
     echo "  health    Check whether Solr, DB, Server, and UI are healthy"
     echo "  clean-migration  Remove temporary migration files after a successful migration"
     echo "  help      Show this help message"
@@ -495,35 +587,50 @@ case "$1" in
         echo "Success: Migration finished. Lock file $LOCK_MIGRATE created."
         ;;
     update)
+        parse_target "$@"
         start_guarded_action "update"
-        update_repositories
-        patch_dockerfiles
-        remove_containers
-        build_environment
-        start_containers
+        update_repositories "$TARGET"
+        patch_dockerfiles "$TARGET"
+        if [ "$TARGET" = "all" ]; then
+            remove_containers
+            build_environment
+            start_containers
+        else
+            build_target "$TARGET"
+            start_target_container "$TARGET"
+        fi
         finish_guarded_action
         ;;
     rebuild)
+        parse_target "$@"
         start_guarded_action "rebuild"
-        patch_dockerfiles
-        remove_containers
-        build_environment
-        start_containers
+        patch_dockerfiles "$TARGET"
+        if [ "$TARGET" = "all" ]; then
+            remove_containers
+            build_environment
+            start_containers
+        else
+            build_target "$TARGET"
+            start_target_container "$TARGET"
+        fi
         finish_guarded_action
         ;;
     restart)
+        parse_target "$@"
         start_guarded_action "restart"
-        restart_containers
+        if [ "$TARGET" = "all" ]; then restart_containers; else restart_target_container "$TARGET"; fi
         finish_guarded_action
         ;;
     start)
+        parse_target "$@"
         start_guarded_action "start"
-        start_containers
+        if [ "$TARGET" = "all" ]; then start_containers; else start_target_container "$TARGET"; fi
         finish_guarded_action
         ;;
     stop)
+        parse_target "$@"
         start_guarded_action "stop"
-        stop_containers
+        if [ "$TARGET" = "all" ]; then stop_containers; else stop_target_container "$TARGET"; fi
         finish_guarded_action
         ;;
     health)
