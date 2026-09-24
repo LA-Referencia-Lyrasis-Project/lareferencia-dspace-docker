@@ -300,6 +300,60 @@ update_repositories() {
     fi
 }
 
+configure_maven_mirror() {
+    local dockerfile="$1"
+    local mirror_url="${MAVEN_MIRROR_URL:-}"
+    local escaped_mirror_url settings_instruction temporary_dockerfile
+
+    # Keep the upstream Maven configuration unless a mirror was explicitly set.
+    if [ -z "$mirror_url" ]; then
+        return 0
+    fi
+
+    # The URL is written inside a single-quoted shell argument in the generated
+    # Dockerfile. Reject characters that could make that instruction unsafe.
+    if [[ "$mirror_url" != http://* && "$mirror_url" != https://* ]] \
+        || [[ "$mirror_url" == *"'"* || "$mirror_url" == *$'\n'* || "$mirror_url" == *$'\r'* ]]; then
+        echo "Error: MAVEN_MIRROR_URL must be an HTTP(S) URL without quotes or line breaks."
+        exit 1
+    fi
+
+    # Escape the value for XML while retaining the original URL for Maven.
+    escaped_mirror_url="$(printf '%s' "$mirror_url" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')"
+    settings_instruction="$(cat <<EOF
+# Maven Central mirror configured by dspace.sh
+RUN mkdir -p /root/.m2 && printf '%s\\n' \\
+  '<settings>' \\
+  '  <mirrors>' \\
+  '    <mirror>' \\
+  '      <id>dspace-build-mirror</id>' \\
+  '      <name>Configured Maven Central mirror</name>' \\
+  '      <url>${escaped_mirror_url}</url>' \\
+  '      <mirrorOf>central</mirrorOf>' \\
+  '    </mirror>' \\
+  '  </mirrors>' \\
+  '</settings>' > /root/.m2/settings.xml
+EOF
+)"
+
+    temporary_dockerfile="$(mktemp "${dockerfile}.XXXXXX")"
+    if ! MAVEN_SETTINGS_INSTRUCTION="$settings_instruction" awk '
+        BEGIN { settings = ENVIRON["MAVEN_SETTINGS_INSTRUCTION"] }
+        /^[[:space:]]*RUN[[:space:]]/ && index($0, "mvn") > 0 && !inserted {
+            print settings
+            inserted = 1
+        }
+        { print }
+        END { exit !inserted }
+    ' "$dockerfile" > "$temporary_dockerfile"; then
+        rm -f "$temporary_dockerfile"
+        echo "Error: no Maven build command was found in $dockerfile."
+        exit 1
+    fi
+
+    mv "$temporary_dockerfile" "$dockerfile"
+}
+
 patch_dockerfiles() {
     local target="${1:-all}"
     echo "======= Generating Dockerfile Production Overrides ======="
@@ -317,6 +371,8 @@ patch_dockerfiles() {
         else
             sed '/RUN mkdir \/install/i USER root' DSpace/Dockerfile > "$DOCKER_BUILD_DIR/DSpace.Dockerfile"
         fi
+
+        configure_maven_mirror "$DOCKER_BUILD_DIR/DSpace.Dockerfile"
     fi
 
     if [ "$target" = "all" ] || [ "$target" = "frontend" ]; then

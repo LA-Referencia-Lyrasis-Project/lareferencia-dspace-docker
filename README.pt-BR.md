@@ -78,6 +78,16 @@ cp local.cfg.example local.cfg
 2. **⚠️ Atenção Crítica:** Altere a variável `POSTGRES_PASSWORD` no `.env` para uma senha forte antes de iniciar o ambiente.
 3. **Editar o arquivo `local.cfg`:** Adicione as propriedades da aplicação DSpace (metadados, SMTP/E-mail, autenticação externa, etc.).
 
+### Mirror do Maven
+
+Por padrão, o instalador mantém a configuração Maven original do DSpace. Para usar um mirror durante a construção da imagem do backend, defina `MAVEN_MIRROR_URL` no `.env`; então o instalador cria um `settings.xml` no estágio Maven do Dockerfile. Por exemplo, para usar o mirror do Google e evitar acessos ao endpoint que possa estar atrás de Cloudflare:
+
+```env
+MAVEN_MIRROR_URL=https://maven-central.storage-download.googleapis.com/maven2/
+```
+
+Deixe `MAVEN_MIRROR_URL` vazio ou ausente para continuar usando o comportamento padrão. Para usar outro mirror acessível na sua rede, altere somente essa variável no `.env` e execute `./dspace.sh rebuild backend`. O mirror substitui apenas o repositório Maven Central (`mirrorOf=central`); repositórios adicionais definidos pelo DSpace continuam inalterados.
+
 O script de deploy lê o `.env` como dados e não executa o arquivo como script shell. Use linhas no formato `KEY=value` e coloque valores com espaços entre aspas.
 
 ### Regras Importantes para o `local.cfg`
