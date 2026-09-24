@@ -350,7 +350,7 @@ EOF
 build_environment() {
     echo "======= Building Production Environment ======="
     export MAVEN_OPTS="-Dhttp.keepAlive=false -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.pool=false"
-    docker compose -f "$COMPOSE_FILE" build --no-cache
+    docker compose -f "$COMPOSE_FILE" build
 }
 
 service_for_target() {
@@ -380,7 +380,7 @@ build_target() {
 
     echo "======= Building $label Production Image ======="
     export MAVEN_OPTS="-Dhttp.keepAlive=false -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.pool=false"
-    docker compose -f "$COMPOSE_FILE" build --no-cache "$service"
+    docker compose -f "$COMPOSE_FILE" build "$service"
 }
 
 start_containers() {
