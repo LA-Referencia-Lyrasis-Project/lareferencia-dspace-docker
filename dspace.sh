@@ -322,7 +322,8 @@ configure_maven_mirror() {
     escaped_mirror_url="$(printf '%s' "$mirror_url" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')"
     settings_instruction="$(cat <<EOF
 # Maven Central mirror configured by dspace.sh
-RUN mkdir -p /root/.m2 && printf '%s\\n' \\
+ENV MAVEN_CONFIG=/tmp/dspace-maven
+RUN mkdir -p "\${MAVEN_CONFIG}" && printf '%s\\n' \\
   '<settings>' \\
   '  <mirrors>' \\
   '    <mirror>' \\
@@ -332,7 +333,7 @@ RUN mkdir -p /root/.m2 && printf '%s\\n' \\
   '      <mirrorOf>central</mirrorOf>' \\
   '    </mirror>' \\
   '  </mirrors>' \\
-  '</settings>' > /root/.m2/settings.xml
+  '</settings>' > "\${MAVEN_CONFIG}/settings.xml"
 EOF
 )"
 
