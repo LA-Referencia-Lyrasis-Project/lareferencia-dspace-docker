@@ -344,6 +344,11 @@ EOF
             print settings
             inserted = 1
         }
+        inserted && $0 !~ /^[[:space:]]*#/ {
+            # Pass the settings file explicitly. Some Maven base images do not
+            # honor MAVEN_CONFIG when their non-root build user is selected.
+            gsub(/mvn[[:space:]]+/, "mvn --settings /tmp/dspace-maven/settings.xml ")
+        }
         { print }
         END { exit !inserted }
     ' "$dockerfile" > "$temporary_dockerfile"; then
